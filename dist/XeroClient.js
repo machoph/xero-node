@@ -7,6 +7,9 @@ class XeroClient {
     constructor(config) {
         this.config = config;
         this.accountingApi = new xero.AccountingApi();
+        if(this.config.refreshToken){
+            this.setRefreshToken(this.config.refreshToken);
+        }
     }
     get tenantIds() {
         return this._tenantIds;
@@ -49,9 +52,32 @@ class XeroClient {
         if (!this.tokenSet) {
             throw new Error('tokenSet is not defined');
         }
+        
         this.tokenSet = await this.openIdClient.refresh(this.tokenSet.refresh_token);
         this.setAccessTokenForAllApis();
         await this.fetchConnectedTenantIds();
+        if(this.config.onRefreshToken){
+            this.config.onRefreshToken(this.tokenSet.refresh_token);
+        }
+    }
+    async setRefreshToken(refreshToken) {
+        if (!refreshToken) {
+            throw new Error('refreshToken not defined');
+        }
+
+        if(!this.openIdClient){
+            const issuer = await openid_client_1.Issuer.discover('https://identity.xero.com');
+            this.openIdClient = new issuer.Client({
+                client_id: this.config.clientId,
+                client_secret: this.config.clientSecret,
+                redirect_uris: this.config.redirectUris,
+            });
+            this.openIdClient[openid_client_1.custom.clock_tolerance] = 5;
+        }
+        this.tokenSet = await this.openIdClient.refresh(refreshToken);
+        this.setAccessTokenForAllApis();
+        await this.fetchConnectedTenantIds();
+        return this.tokenSet;
     }
     setAccessTokenForAllApis() {
         const accessToken = this.tokenSet.access_token;

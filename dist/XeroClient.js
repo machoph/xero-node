@@ -75,6 +75,9 @@ class XeroClient {
             this.openIdClient[openid_client_1.custom.clock_tolerance] = 5;
         }
         this.tokenSet = await this.openIdClient.refresh(refreshToken);
+        if(this.config.onRefreshToken){
+            this.config.onRefreshToken(this.tokenSet.refresh_token);
+        }
         this.setAccessTokenForAllApis();
         await this.fetchConnectedTenantIds();
         return this.tokenSet;
